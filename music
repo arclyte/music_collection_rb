@@ -1,0 +1,159 @@
+#!/usr/bin/ruby
+# Music Collection
+# Using: ruby 2.3.7p456 (2018-03-28 revision 63024) [universal.x86_64-darwin16]
+
+require 'shellwords'
+
+class Library
+	@@array = Array.new
+
+	attr_accessor :song, :artist, :played
+
+	def self.all_instances
+		@@array
+	end
+
+	def initialize(song, artist)
+		@song = song
+		@artist = artist
+		@played = false
+		@@array << self
+	end
+
+	def ==(other)
+		self.class === other and
+			other.song == @song and
+			other.artist == @artist
+	end
+
+	alias eql? ==
+
+	def hash
+		@song.hash ^ @artist.hash
+	end
+end
+
+class MusicCollector
+	# abusing class initializer to print to stdout :O
+	def initialize
+		stdout("Welcome to your music collection!\n")
+		prompt()
+	end
+
+	def run
+		while user_input = STDIN.gets.chomp
+			# split input, paying attention to quoted strings
+			user_input = Shellwords.split(user_input)
+
+			case user_input[0]
+			when "add"
+				add(user_input[1].to_s, user_input[2].to_s)
+			when "play"
+				play(user_input[1].to_s)
+			when "show"
+				input1 = user_input[1].to_s
+				input2 = user_input[2] ? user_input[2].to_s : ""
+				input3 = user_input[3] ? user_input[3].to_s : ""
+				
+				show(input1, input2, input3)
+			when "help"
+				help()
+			when "quit"
+				stdout("Bye!\n")
+				exit
+			else
+				stdout("I'm sorry, I didn't understand your request. Please try again.")
+			end
+
+			stdout()
+			prompt()
+		end
+	end
+
+	# add a song to the library
+	def add(song, artist)
+		# create a new track to add to the library using given inputs
+		newTrack = Library.new song, artist
+
+		# provide user feedback
+		puts "\nAdded \"" + newTrack.song + '" by ' + newTrack.artist + "\n"
+	end
+
+	# play a song
+	def play(request)
+		stdout(request)
+
+		track = Library.all_instances.select{ |t| t.song === request }
+
+		if track.nil? || track.empty?
+			stdout("Sorry, but I couldn't find that track!")
+			return false
+		end
+
+		track[0].played = true
+			
+		stdout("You're listening to \"" + track[0].song + "\"")
+		
+		return true
+	end
+
+	def show(input1, input2 = "", input3 = "")
+		# show all
+		if input1 == "all"
+			tracks = Library.all_instances
+		# show unplayed
+		elsif input1 == "unplayed"
+			tracks = Library.all_instances.select{|t| t.played == false}
+		end
+
+		# show by
+		if input2 && input2 == "by" && input3
+			tracks = tracks.select{|t| t.artist == input3}
+		end
+
+		# print all found tracks
+		if tracks.length > 0
+			stdout()
+
+			tracks.each do |track|
+				playStatus = track.played ? "played" : "unplayed"
+
+				# not using stdout since we don't want \n's
+				puts "\"" + track.song + "\" by " + track.artist + " (" + playStatus + ")"
+			end
+
+			return true
+		end
+		
+		stdout("Sorry, but I couldn't find any tracks. Try 'add'ing some!")
+	end
+
+	def help
+		stdout("Usage: command [options]")
+		stdout("Commands:")
+		puts "- add \"title\" \"artist\"\t\t Adds a track to your collection"
+		puts "- play \"title\"\t\t\t Play a track in your collection"
+		puts "- show all\t\t\t Show all tracks in your collection"
+		puts "- show all by \"artist\"\t\t Show all tracks by an artist in your collection"
+		puts "- show unplayed\t\t\t Show all unplayed tracks in your collection"
+		puts "- show unplayed by \"artist\"      Show all unplayed tracks by an artist in your collection"
+		puts "- quit\t\t\t\t Quit the app"
+	end
+
+	# wrapper method for puts to cli
+	def stdout(input="")
+		if input.empty?
+			puts
+		else
+			puts "\n" + input + "\n"
+		end
+	end
+
+	# print input prompt
+	def prompt
+		print "> "
+	end
+end	
+
+mc = MusicCollector.new
+mc.run()
